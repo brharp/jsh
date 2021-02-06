@@ -1,0 +1,13 @@
+<html>
+<body>
+<script>
+const url = "ws://localhost:8001/jsh";
+const protocols = null;
+webSocket = new WebSocket(url, protocols);
+webSocket.onmessage = function(event) {
+	var geval = eval;
+	geval(event.data);
+};
+</script>
+</body>
+</html>
