@@ -1,0 +1,4 @@
+Allow a script to be passed as a command line argument
+-	Process command line arguments
+-	Send script in a single message
+
