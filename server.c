@@ -9,13 +9,16 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <openssl/sha.h>
+#include <sys/select.h>
 #include "base64.h"
+#include "websocket.h"
 
 #define IOBUFSZ 4096
 #define MAXLINE 1024
 #define FRMSZ 10
 
 char *progname;
+char *prompt = "jsh> ";
 
 int wsinit(int fd);
 int wsdata(int fd);
@@ -162,19 +165,69 @@ wsinit(int fd)
 int
 wsdata(int fd)
 {
-	unsigned char buf[IOBUFSZ], ln[126], *p, *s;
-	int i, n;
+	unsigned char buf[IOBUFSZ], ln[126], *p, *s, key[4];
+	fd_set readfds;
+	int i, n, nfds, pos, len, fin, mask, opc;
 
-	fprintf(stderr, "jsh> ");
-	while (fgets(ln, sizeof(ln), stdin) != NULL) {
-		p = buf;
-		*p++ = 1 << 7 | 1;
-		*p++ = strlen(ln);
-		for (s = ln; *s; p++, s++) {
-			*p = *s;
+	bzero(buf, IOBUFSZ);
+	fprintf(stderr, "%s", prompt);
+
+	for (;;) {
+		FD_ZERO(&readfds);
+		FD_SET(STDIN_FILENO, &readfds);
+		FD_SET(fd, &readfds);
+		nfds = fd + 1;
+		nfds = select(nfds, &readfds, NULL, NULL, NULL);
+		if (nfds < 0) {
+			perror(progname);
+			return 0;
 		}
-		n = p - buf;
-		write(fd, buf, n);
-		fprintf(stderr, "jsh> ");
+		/* Read from standard input. */
+		if (FD_ISSET(STDIN_FILENO, &readfds)) {
+			if (fgets(ln, sizeof(ln), stdin) == NULL) {
+				break;
+			}
+			p = buf;
+			*p++ = 1 << 7 | 1;
+			*p++ = strlen(ln);
+			for (s = ln; *s; p++, s++) {
+				*p = *s;
+			}
+			n = p - buf;
+			write(fd, buf, n);
+			fprintf(stderr, "%s", prompt);
+		}
+		/* Read from socket. */
+		if (FD_ISSET(fd, &readfds)) {
+			n = read(fd, buf, IOBUFSZ-1);
+			if (n < 0) {
+				perror(progname);
+				return 0;
+			}
+			pos = 1;
+			/* Parse length */
+			len = buf[pos++] & 0x7F;
+			if (len == 126) {
+				len = buf[pos++];
+				len = len << 8 | buf[pos++];
+			}
+			else if (len == 127) {
+				len = buf[pos++];
+				len = len << 8 | buf[pos++];
+				len = len << 8 | buf[pos++];
+				len = len << 8 | buf[pos++];
+			}
+			if (WS_ISMASK(buf[1])) {
+				key[0] = buf[pos++];
+				key[1] = buf[pos++];
+				key[2] = buf[pos++];
+				key[3] = buf[pos++];
+				for (i = 0; pos + i < n; i++) {
+					buf[pos + i] = buf[pos + i] ^ key[i % 4];
+				}
+			}
+			write(STDOUT_FILENO, &buf[pos], n - pos);
+		}
 	}
+
 }
