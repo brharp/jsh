@@ -170,7 +170,6 @@ wsdata(int fd)
 	int i, n, nfds, pos, len, fin, mask, opc;
 
 	bzero(buf, IOBUFSZ);
-	fprintf(stderr, "%s", prompt);
 
 	for (;;) {
 		FD_ZERO(&readfds);
@@ -195,7 +194,6 @@ wsdata(int fd)
 			}
 			n = p - buf;
 			write(fd, buf, n);
-			fprintf(stderr, "%s", prompt);
 		}
 		/* Read from socket. */
 		if (FD_ISSET(fd, &readfds)) {
@@ -227,6 +225,9 @@ wsdata(int fd)
 				}
 			}
 			write(STDOUT_FILENO, &buf[pos], n - pos);
+			if (len != n - pos) {
+				fprintf(stderr, "%s\n", "message truncated");
+			}
 		}
 	}
 
