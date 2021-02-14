@@ -3,10 +3,10 @@
 <script>
 const url = "ws://localhost:8001/jsh";
 const protocols = null;
-const prompt = "jsh> ";
+const prompt = "\njsh> ";
 webSocket = new WebSocket(url, protocols);
 webSocket.onmessage = function(event) {
-	Function(event.data)();
+	webSocket.send(Function("return " + event.data)());
 	webSocket.send(prompt);
 };
 webSocket.onopen = function (event) {
