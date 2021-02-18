@@ -7,10 +7,8 @@ const prompt = "\njsh> ";
 webSocket = new WebSocket(url, protocols);
 webSocket.onmessage = function(event) {
 	webSocket.send(Function("return " + event.data)());
-	webSocket.send(prompt);
 };
 webSocket.onopen = function (event) {
-	webSocket.send(prompt);
 };
 </script>
 </body>

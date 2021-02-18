@@ -10,39 +10,45 @@
 #include <ctype.h>
 #include <openssl/sha.h>
 #include <sys/select.h>
+#include <sys/uio.h>
 #include "base64.h"
 #include "websocket.h"
 
-#define IOBUFSZ 4096
-#define MAXLINE 1024
-#define FRMSZ 10
+#define _BUFSIZE 127
+#define HBUFSIZE 64
+#define MAXLINE 256
 
-char *progname;
-char *prompt = "jsh> ";
+struct websocket_ {
+	int fd;
+	/* output buffer */
+	char *write_base;
+	char *write_ptr;
+	int write_cnt;
+	/* input buffer */
+	char *read_base;
+	char *read_ptr;
+	int read_cnt;
+};
 
-int wsinit(int fd);
-int wsdata(int fd);
-
-int main(int argc, char *argv[])
+WEBSOCKET *
+ws_open(int port)
 {
 	int sockfd, newsockfd, portno;
 	socklen_t clilen;
 	char buffer[256];
 	struct sockaddr_in serv_addr, cli_addr;
 	int n;
-	progname = argv[0];
-	if (argc < 2)
-	{
-		fprintf(stderr, "ERROR, no port provided\n");
-		exit(1);
-	}
+	WEBSOCKET *p;
+	int wsinit(int);
+
+	const char *progname = "ws_open";
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0) {
 		perror(progname);
 		exit(1);
 	}
 	bzero((char *)&serv_addr, sizeof(serv_addr));
-	portno = atoi(argv[1]);
+	portno = port;
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
 	serv_addr.sin_port = htons(portno);
@@ -60,9 +66,19 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	wsinit(newsockfd);
-	wsdata(newsockfd);
-	close(newsockfd);
+	p = calloc(1, sizeof(*p));
+	p->fd = newsockfd;
 	close(sockfd);
+	return p;
+}
+
+int
+ws_close(WEBSOCKET *p)
+{
+	close(p->fd);
+	free(p->read_base);
+	free(p->write_base);
+	free(p);
 	return 0;
 }
 
@@ -70,7 +86,7 @@ int
 wsinit(int fd)
 {
 	int		pos, avail, size, rem, nr;
-	char		*buf = 0;
+	char	*buf = 0;
 
 	/* Read HTTP request */
 	for (pos = 0, avail = 0, size = 0, rem = 0;;) {
@@ -89,7 +105,7 @@ wsinit(int fd)
 			break;
 		}
 		if (pos + 4 >= size) {
-			size += IOBUFSZ;
+			size += _BUFSIZE;
 			char *ptr = realloc(buf, size);
 			if (ptr == NULL) {
 				free(buf);
@@ -162,73 +178,160 @@ wsinit(int fd)
 	return 1;
 }
 
-int
-wsdata(int fd)
+static int 
+_flush(int c, WEBSOCKET *p)
 {
-	unsigned char buf[IOBUFSZ], ln[126], *p, *s, key[4];
-	fd_set readfds;
-	int i, n, nfds, pos, len, fin, mask, opc;
+	char             hbuf[HBUFSIZE], *hptr;
+	int              hlen, n, nw;
+	struct iovec     iov[2];
 
-	bzero(buf, IOBUFSZ);
+	/* write buffered data */
+	if ((n = p->write_ptr - p->write_base) > 0) {
+		hptr = hbuf;
+		*hptr++ = 0201;
+		*hptr++ = n;
+		hlen = hptr - hbuf;
+		iov[0].iov_base = hbuf;
+		iov[0].iov_len = hlen;
+		iov[1].iov_base = p->write_base;
+		iov[1].iov_len = n;
+		if ((nw = writev(p->fd, iov, 2)) != hlen + n)
+			return EOF;
+	}
 
-	for (;;) {
-		FD_ZERO(&readfds);
-		FD_SET(STDIN_FILENO, &readfds);
-		FD_SET(fd, &readfds);
-		nfds = fd + 1;
-		nfds = select(nfds, &readfds, NULL, NULL, NULL);
-		if (nfds < 0) {
-			perror(progname);
-			return 0;
-		}
-		/* Read from standard input. */
-		if (FD_ISSET(STDIN_FILENO, &readfds)) {
-			if (fgets(ln, sizeof(ln), stdin) == NULL) {
+	/* allocate buffer */
+	if (p->write_base == NULL)
+		if ((p->write_base = malloc(_BUFSIZE)) == NULL)
+			return EOF;
+
+	p->write_ptr = p->write_base;
+	p->write_cnt = _BUFSIZE;
+
+	return c != EOF ? ws_putc(c, p) : EOF;
+}
+
+void
+ws_flush(WEBSOCKET *p)
+{
+	(void) _flush(EOF, p);
+}
+
+int
+ws_putc(int c, WEBSOCKET *p)
+{
+	return --p->write_cnt >= 0 ? *p->write_ptr++ = c : _flush(c, p);
+}
+
+int
+ws_write(WEBSOCKET *p, const void *buf, size_t count)
+{
+	int i;
+	const char *cbuf = buf;
+	for (i = 0; i < count; i++)
+		if ((ws_putc(*cbuf++, p)) == EOF)
+			break;
+	return i;
+}
+
+static int
+_fill(WEBSOCKET *p)
+{
+	int nr, hlen, len, state, mask, i;
+	char c, *ptr, key[4];
+
+	/* allocate buffer */
+	if (p->read_base == NULL)
+		if ((p->read_base = malloc(_BUFSIZE)) == NULL)
+			return EOF;
+	p->read_ptr = p->read_base;
+	
+	/* read frame header */
+	if ((p->read_cnt = read(p->fd, p->read_base, _BUFSIZE)) < 0)
+		return EOF;
+
+	/* parse header */
+	state = 0;
+	while (state < 8 && --p->read_cnt >= 0) {
+		c = *p->read_ptr++;
+		switch (state) {
+			case 0: /* flags */
+				state = 1;
 				break;
-			}
-			p = buf;
-			*p++ = 1 << 7 | 1;
-			*p++ = strlen(ln);
-			for (s = ln; *s; p++, s++) {
-				*p = *s;
-			}
-			n = p - buf;
-			write(fd, buf, n);
-		}
-		/* Read from socket. */
-		if (FD_ISSET(fd, &readfds)) {
-			n = read(fd, buf, IOBUFSZ-1);
-			if (n < 0) {
-				perror(progname);
-				return 0;
-			}
-			pos = 1;
-			/* Parse length */
-			len = buf[pos++] & 0x7F;
-			if (len == 126) {
-				len = buf[pos++];
-				len = len << 8 | buf[pos++];
-			}
-			else if (len == 127) {
-				len = buf[pos++];
-				len = len << 8 | buf[pos++];
-				len = len << 8 | buf[pos++];
-				len = len << 8 | buf[pos++];
-			}
-			if (WS_ISMASK(buf[1])) {
-				key[0] = buf[pos++];
-				key[1] = buf[pos++];
-				key[2] = buf[pos++];
-				key[3] = buf[pos++];
-				for (i = 0; pos + i < n; i++) {
-					buf[pos + i] = buf[pos + i] ^ key[i % 4];
-				}
-			}
-			write(STDOUT_FILENO, &buf[pos], n - pos);
-			if (len != n - pos) {
-				fprintf(stderr, "%s\n", "message truncated");
-			}
+			case 1: /* 8 bit length */
+				len = c & 0177;
+				mask = c & 0200;
+				state = mask ? 4 : 8;
+				break;
+			case 2: /* 16 bit length */
+				break;
+			case 3: /* 64 bit length */
+				break;
+			case 4: /* mask 0 */
+				key[0] = c;
+				state = 5;
+				break;
+			case 5: /* mask 1 */
+				key[1] = c;
+				state = 6;
+				break;
+			case 6: /* mask 2 */
+				key[2] = c;
+				state = 7;
+				break;
+			case 7: /* mask 3 */
+				key[3] = c;
+				state = 8;
+				break;
 		}
 	}
 
+	/* success? */
+	if (state != 8)
+		return EOF;
+
+	/* reallocate buffer to accomodate complete frame */
+	hlen = p->read_ptr - p->read_base;
+	if ((ptr = realloc(p->read_base, hlen + len)) == NULL)
+		return EOF;
+	p->read_base = ptr;
+	p->read_ptr = &p->read_base[hlen];
+
+	/* read rest of frame */
+	while (p->read_cnt < len) {
+		if ((nr = read(p->fd, &p->read_ptr[p->read_cnt], len - p->read_cnt)) < 0)
+			return EOF;
+		p->read_cnt += nr;
+	}
+
+	/* mask data */
+	for (i = 0; i < len; i++)
+		p->read_ptr[i] ^= key[i % 4];
+
+	return p->read_cnt;
+}
+
+int
+ws_getc(WEBSOCKET *p) /* input character from websocket */
+{
+	return (--p->read_cnt >= 0 ? *p->read_ptr++ & 0377 : _fill(p));
+}
+
+/* ws_read - read from a websocket */
+int
+ws_read(WEBSOCKET *p, void *buf, size_t count)
+{
+	int i;
+	char *cbuf = buf;
+
+	if (p->read_cnt <= 0)
+		if (_fill(p) < 0)
+			return EOF;
+	
+	for (i = 0; i < count; i++)
+		if (--p->read_cnt >= 0)
+			*cbuf++ = *p->read_ptr++;
+		else
+			break;
+
+	return i;
 }
