@@ -21,3 +21,4 @@ RETURN VALUE
 #define JS_ERR_SYSTEM    2
 #define JS_ERR_NETDB     3
 
+int js_write(const void *buf, size_t count);
