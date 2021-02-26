@@ -44,28 +44,16 @@ void js_lineto(float x, float y)
 void js_initialize()
 {
 	char s[BUFSIZ];
-	defjs(
-		"paint = function (ctx, width, height) {"
-		"  ctx.fillStyle = 'white'"
-		"  ctx.fillRect(0, 0, width, height)"
-		"  ctx.save()"
-		"  ctx.scale(width/13, height/3)"
-		"  ctx.clearRect(0, 0, 13, 3)"
-		"  ctx.translate(0, 1.5)"
-		"  ctx.beginPath()"
-		"  ctx.moveTo(0, 0)"
-		"  ctx.lineTo(13, 0)"
-		"  ctx.moveTo(0, 0)"
-		"  dl.forEach((f) => f(ctx))"
-		"  ctx.restore()"
-		"  ctx.stroke()"
-		"}"
-	);
-	defjs("cvs = document.createElement('canvas')");
+	defjs("create = function (name) { return document.createElement(name); }");
+	defjs("append = function (element) { document.body.appendChild(element); }");
+	defjs("include = function (path) { let s = create('script'); s.src = path; append(s); }");
+	defjs("include('graph.js')");
+	defjs("cvs = create('canvas')");
 	sprintf(s, "cvs.width = %d", WIDTH); defjs(s);
 	sprintf(s, "cvs.height = %d", HEIGHT); defjs(s);
 	defjs("ctx = cvs.getContext('2d')");
-	defjs("document.body.appendChild(cvs)");
+	defjs("append(cvs)");
+	defjs("append(create('button'))");
 	js_begincurve();
 }
 

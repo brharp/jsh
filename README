@@ -1,0 +1,57 @@
+websockd upgrades to a websocket connection and then
+writes data to stdout and reads data from stdin.
+
+The websocket protocol interleaves data with framing
+information. websockd removes framing information from
+the downstream and inserts framing into the upstream.
+
+websockd is essentially a state machine. Each byte of
+data read from the socket can either be:
+
+-	Opcode/flags
+-	Content length data
+-	Masking key data
+-	Payload data
+
+Payload data is copied to stdout.
+
+Each byte of data read from stdin is payload data and
+is appended to the frame. Newline (\n) serves as 
+a record separator. When a newline is read, a frame
+is queued for output to the socket.
+
+What we end up with is a linked list of frames from
+the socket ready to be written to stdout, and a linked
+list of frames from stdin ready to be written to the socket.
+When select indicates that a file descriptor is ready for
+reading or writing, we drain the output queue or add to the
+input queue.
+
+The core of the program is a call to select(). If we have
+any incoming frames ready to be written, we ask the pipe
+if it is available for writing. Likewise, if we have any
+outgoing frames ready we ask the socket if it is ready
+to be written to. We always ask the socket and stdin if
+they have data available to be read---if so we read what 
+they have and add to the queue.
+
+From the pipe we read and write plain text, delimited by
+newlines. From the socket we read and write frames. This 
+adapts the web API's clunky message oriented interface to
+a stream of text that UNIX programs can understand.
+
+Data Structures
+
+incoming queue
+outgoing queue
+
+incoming frame buffer
+outgoing frame buffer
+
+incoming line buffer
+outgoing line buffer
+
+outgoing frame content length
+incoming frame content length
+
+
