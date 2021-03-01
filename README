@@ -55,3 +55,12 @@ outgoing frame content length
 incoming frame content length
 
 
+
+Program Structure
+
+(Prepare to run as a daemon.)
+Create a socket server and listen for connections.
+Fork a new process per client connection.
+Perform websocket handshake.
+Fork a second time and exec service.
+Proxy frames between client and service.

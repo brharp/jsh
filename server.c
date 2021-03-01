@@ -1,8 +1,8 @@
 #include <errno.h>
-#include "server.h"
+#include <sys/socket.h>
 
 int
-server(int type, const struct sockaddr *addr, socklen_t alen, int qlen)
+initserver(int type, const struct sockaddr *addr, socklen_t alen, int qlen)
 {
 	int fd, err, reuse = 1;
 
