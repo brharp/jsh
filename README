@@ -64,3 +64,18 @@ Fork a new process per client connection.
 Perform websocket handshake.
 Fork a second time and exec service.
 Proxy frames between client and service.
+
+
+
+Receiving Data
+
+Buffer empty?
+       Read frame header
+       Read _content length_ bytes of payload data
+Return up to n bytes of data to caller
+
+
+Sending Data
+
+Write frame header
+Write n bytes of data

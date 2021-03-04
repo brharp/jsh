@@ -82,8 +82,8 @@ ws_close(WEBSOCKET *p)
 	return 0;
 }
 
-int
-wsinit(int fd)
+void
+handshake()
 {
 	int		pos, avail, size, rem, nr;
 	char	*buf = 0;
@@ -114,7 +114,7 @@ wsinit(int fd)
 			buf = ptr;
 			rem = size - avail;
 		}
-		nr = read(fd, &buf[avail], rem);
+		nr = read(STDIN_FILENO, &buf[avail], rem);
 		if (nr < 0) {
 			free(buf);
 			return 0;
@@ -162,20 +162,19 @@ wsinit(int fd)
 	/* Send response */
 	char hdr[MAXLINE];
 	sprintf(hdr, "HTTP/1.1 101 Switching Protocols\r\n");
-	write(fd, hdr, strlen(hdr));
+	write(STDOUT_FILENO, hdr, strlen(hdr));
 	sprintf(hdr, "Upgrade: websocket\r\n");
-	write(fd, hdr, strlen(hdr));
+	write(STDOUT_FILENO, hdr, strlen(hdr));
 	sprintf(hdr, "Connection: Upgrade\r\n");
-	write(fd, hdr, strlen(hdr));
+	write(STDOUT_FILENO, hdr, strlen(hdr));
 	sprintf(hdr, "Sec-WebSocket-Protocol: null\r\n");
-	write(fd, hdr, strlen(hdr));
+	write(STDOUT_FILENO, hdr, strlen(hdr));
 	sprintf(hdr, "Sec-WebSocket-Accept: %s\r\n", accept);
-	write(fd, hdr, strlen(hdr));
+	write(STDOUT_FILENO, hdr, strlen(hdr));
 	sprintf(hdr, "\r\n");
-	write(fd, hdr, strlen(hdr));
+	write(STDOUT_FILENO, hdr, strlen(hdr));
 
 	free(buf);
-	return 1;
 }
 
 static int 
