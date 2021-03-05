@@ -1,6 +1,3 @@
-#define WS_ISTEXT(c) (((c) & 0x0F) == 0x01)
-#define WS_ISFIN(c) (((c) & 0x80))
-#define WS_ISMASK(c) ((c) & 0x80)
 
 /*
  * websocket_fdopen opens a file descriptor (which
@@ -24,31 +21,9 @@
  * allocate temporary buffers that are WEBSOCKET_HEADER_SIZE
  * bytes larger than those supplied by the caller.
  */ 
-typedef struct websocket_ WEBSOCKET;
 
-// WEBSOCKET *websocket_open(int fd);
-// int websocket_read(WEBSOCKET *, void *, int);
-// int websocket_write(WEBSOCKET *, void *, int);
-// int websocket_fileno(WEBSOCKET *);
-// int websocket_peek(WEBSOCKET *);
-// int websocket_close(WEBSOCKET *);
-// int websocket_send(WEBSOCKET *, void *, int, int);
-// int websocket_recv(WEBSOCKET *, void *, int, int);
-// void wssetbuf(void *, int);
+int websocket_open(int fd);
+int websocket_read(int fd, void *buf, size_t count);
+int websocket_write(int fd, void *buf, size_t count);
+int websocket_close(int fd);
 
-// websockt wsfdopen(int fd);
-// int wsread(websockt, void *, int);
-// int wswrite(websockt, void *, int);
-// int wssend();
-// int wsrecv();
-// int wsfileno();
-// int wspeek(websockt);
-// void wssetbuf(void *, int);
-
-WEBSOCKET *ws_open(int port);
-int ws_close(WEBSOCKET *ws);
-void ws_flush(WEBSOCKET *ws);
-int ws_write(WEBSOCKET *p, const void *buf, size_t count);
-int ws_read(WEBSOCKET *p, void *buf, size_t count);
-int ws_getc(WEBSOCKET *p);
-int ws_putc(int c, WEBSOCKET *p);
