@@ -1,6 +1,12 @@
 <html>
 <body>
-  <canvas id="cv" width="100%" height="100%"></canvas>
+  <div>
+    <button id="sin" value="0">Sin</button>
+    <button id="cos" value="1">Cos</button>
+    <button id="damped" value="2">Damped</button>
+    <button id="sum" value="3">Sum</button>
+  </div>
+  <canvas id="cv" width="800" height="600"></canvas>
   <script src="graph.js"></script>
   <script>
     const url = "ws://localhost:8001/graph";
@@ -9,9 +15,11 @@
       console.log(event.data);
       Function(event.data)();
     };
-    webSocket.onopen = function (event) {
-      webSocket.send("1 0");
-    };
+    document.body.addEventListener("click", (event) => {
+      if (event.target.tagName == "BUTTON") {
+        webSocket.send(event.target.value);
+      }
+    });
   </script>
 </body>
 </html>

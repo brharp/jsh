@@ -3,64 +3,57 @@
 #include <string.h>
 #include "http.h"
 
-const char *
-http_method()
+const char *http_method()
 {
-	char buf[80];
-	char fmt[80];
-	strcpy(buf, "");
-	sprintf(fmt, "%%%lds", sizeof(buf)-1);
-	scanf(fmt, buf);
-	return strndup(buf, sizeof(buf));
+    char buf[80];
+    char fmt[80];
+    strcpy(buf, "");
+    sprintf(fmt, "%%%lds", sizeof(buf) - 1);
+    scanf(fmt, buf);
+    return strndup(buf, sizeof(buf));
 }
 
-const char *
-http_path()
+const char *http_path()
 {
-	return NULL;
+    return NULL;
 }
 
-const char *
-http_version()
+const char *http_version()
 {
-	return NULL;
+    return NULL;
 }
 
-struct hdr *
-http_header()
+struct hdr *http_header()
 {
-	return NULL;
+    return NULL;
 }
 
-struct http *
-http_request()
+struct http *http_request()
 {
-	struct http *ht = malloc(sizeof(*ht));
+    struct http *ht = malloc(sizeof(*ht));
 
-	ht->type    = request;
-	ht->method  = http_method();
-	ht->path    = http_path();
-	ht->version = http_version();
+    ht->type = request;
+    ht->method = http_method();
+    ht->path = http_path();
+    ht->version = http_version();
 
-	struct hdr *hd = http_header();
-	while (hd != NULL) {
-		hd->next = ht->headers;
-		ht->headers = hd;
-		hd = http_header();
-	}
+    struct hdr *hd = http_header();
+    while (hd != NULL) {
+	hd->next = ht->headers;
+	ht->headers = hd;
+	hd = http_header();
+    }
 
-	return ht;
+    return ht;
 }
 
 #ifdef TEST
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-	const char *method = http_method();
-	while (method != 0 && strlen(method) > 0) {
-		printf("%s\n", method);
-		method = http_method();
-	}
+    const char *method = http_method();
+    while (method != 0 && strlen(method) > 0) {
+	printf("%s\n", method);
+	method = http_method();
+    }
 }
 #endif
-
-

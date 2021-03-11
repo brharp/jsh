@@ -20,10 +20,10 @@
  * Both websocket_read() and websocket_write() need to
  * allocate temporary buffers that are WEBSOCKET_HEADER_SIZE
  * bytes larger than those supplied by the caller.
- */ 
+ */
+#include <unistd.h>
 
 int websocket_open(int fd);
 int websocket_read(int fd, void *buf, size_t count);
 int websocket_write(int fd, void *buf, size_t count);
 int websocket_close(int fd);
-

@@ -7,20 +7,22 @@
 
 */
 
+displaylist = [];
+
 paintchart = function () {
     cv = document.getElementById('cv');
     ctx = cv.getContext("2d");
     ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.save();
-    ctx.scale(width/13, height/3);
+    ctx.scale(cv.width/13, cv.height/3);
     ctx.clearRect(0, 0, 13, 3);
     ctx.translate(0, 1.5);
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(13, 0);
     ctx.moveTo(0, 0);
-    displaylist(ctx);
+    displaylist.forEach((op) => op(ctx));
     ctx.restore();
     ctx.stroke();
 }
