@@ -18,7 +18,7 @@
 #include "base64.h"
 #include "websocket.h"
 
-#define IOBUFSZ 65535
+#define IOBUFSZ 4096
 #define PORT    8001
 #define QLEN    10
 
@@ -53,12 +53,20 @@ int initserver(int type, const struct sockaddr *addr, socklen_t alen,
 }
 
 
+struct buf {
+	char *base;
+	char *ptr;
+	int  cnt;
+};
+
 void service(int fd)
 {
     int req[2], res[2];		/* request and response pipes */
     int pid, nfds, nr;
     fd_set readers;
     char buf[IOBUFSZ];
+    struct buf line = {0};
+    int i, n;
 
     websocket_open(fd);
 
@@ -94,10 +102,23 @@ void service(int fd)
 	    if (FD_ISSET(res[0], &readers)) {
 		if ((nr = read(res[0], buf, IOBUFSZ)) < 0)
 			error(EXIT_FAILURE, errno, "read");
-		write(STDERR_FILENO, "\nSending: ", 10);
-		write(STDERR_FILENO, buf, nr);
-		if (websocket_write(fd, buf, nr) < 0)
-		    error(EXIT_FAILURE, 0, "websocket_write");
+		for (i = 0; i < nr; i++) {
+			if (--line.cnt < 0) {
+				n = line.ptr - line.base;
+				line.base = realloc(line.base, n + IOBUFSZ);
+				line.ptr = line.base + n;
+				line.cnt = IOBUFSZ;
+			}
+			if ((*line.ptr++ = buf[i]) == '\n') {
+				n = line.ptr - line.base;
+				write(STDERR_FILENO, "\nSending: ", 10);
+				write(STDERR_FILENO, line.base, n);
+				if (websocket_write(fd, line.base, n - 1) < 0)
+					error(EXIT_FAILURE, 0, "websocket_write");
+				line.ptr = line.base;
+				line.cnt += n;
+			}
+		}
 	    }
 	    if (FD_ISSET(fd, &readers)) {
 		if ((nr = websocket_read(fd, buf, IOBUFSZ-1)) < 0)
