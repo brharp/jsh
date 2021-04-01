@@ -23,7 +23,7 @@
  */
 #include <unistd.h>
 
-int websocket_open(int fd);
-int websocket_read(int fd, void *buf, size_t count);
-int websocket_write(int fd, void *buf, size_t count);
-int websocket_close(int fd);
+int websocket_open();
+int websocket_read(void *buf, size_t count);
+int websocket_write(void *buf, size_t count);
+int websocket_close();

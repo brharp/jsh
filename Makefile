@@ -10,3 +10,9 @@ pretty:
 
 clean:
 	rm -f jsh
+
+install: websockd graph
+	install graph /usr/sbin
+	install websockd /usr/sbin
+	/etc/rc.d/rc.inetd restart
+

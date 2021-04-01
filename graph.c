@@ -37,14 +37,15 @@ int main(int argc, char *argv[])
     int index;
     float x, y;
 
-    setbuf(stdin, 0);
-    setbuf(stdout, 0);
+    //setbuf(stdin, 0);
+    //setbuf(stdout, 0);
 
-    for (;;) {
+    while (!feof(stdin)) {
 
-	scanf("%d", &index);
+	if (scanf("%d", &index) < 1)
+		break;
 
-	fprintf(stderr, "graph: index = %d\n", index);
+	//fprintf(stderr, "graph: index = %d\n", index);
 
 	js_begincurve();
 	/* Start defining the display list. */
@@ -65,7 +66,7 @@ int main(int argc, char *argv[])
 		y = sin(x) + .1 * sin(x * 5 + 1);
 		break;
 	    default:
-		y = 0;
+	    	y = 0;
 	    }
 
 	    js_lineto(x, y);

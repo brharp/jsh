@@ -11,6 +11,7 @@
 #include <openssl/sha.h>
 #include <sys/select.h>
 #include <sys/uio.h>
+#include <syslog.h>
 #include "base64.h"
 #include "websocket.h"
 
@@ -37,15 +38,16 @@ ssize_t buffer(int fd, char **bpp, int off, int *bszp)
 	return -1;
 }
 
-int websocket_close(int fd)
+int websocket_close()
 {
     return 0;
 }
 
-int websocket_open(int fd)
+int websocket_open()
 {
     int sz, i, nr, n;
     char *buf = 0, *ptr;
+    int fd = STDIN_FILENO;
 
     /* read headers */
     i = sz = nr = 0;
@@ -64,14 +66,14 @@ int websocket_open(int fd)
 	    return -1;
 	}
 	ptr = &buf[i];
-	write(STDERR_FILENO, buf, nr);
+	//write(STDERR_FILENO, buf, nr);
     }
 
     char *s, *key;
 
 found:
     /* Parse reqest */
-    fprintf(stderr, "*** HTTP REQUEST ***\n");
+    syslog(LOG_DEBUG, "*** HTTP REQUEST ***\n");
     for (i = 1, s = strtok(buf, "\n"); s; s = strtok(NULL, "\n"), i++) {
 	/* Trim trailing carriage return */
 	if (s[(n = strlen(s)) - 1] == '\r')
@@ -79,7 +81,7 @@ found:
 	if (n == 0)
 		break;
 	/* Log headers for debugging */
-	fprintf(stderr, "%03d %s\n", i, s);
+	syslog(LOG_DEBUG, "%03d %s\n", i, s);
 	/* Record websocket key */
 	if (strncasecmp(s, "Sec-WebSocket-Key: ", 19) == 0) {
 	    key = s + 19;
@@ -114,20 +116,21 @@ found:
     s += sprintf(s, "\r\n");
 
     write(fd, buf, s - buf);
-    write(STDERR_FILENO, buf, s - buf);
+    //write(STDERR_FILENO, buf, s - buf);
 
     free(buf);
     return fd;
 }
 
 
-int websocket_write(int fd, void *buf, size_t count)
+int websocket_write(void *buf, size_t count)
 {
     char *base;			/*  output buffer                  */
     char *ptr;			/*  next byte                      */
     char *cbuf;			/*  char pointer to client buffer  */
     int hlen;			/*  header length                  */
     int nw;			/*  number of bytes written        */
+    int fd = STDOUT_FILENO;
 
     base = malloc(count + HEADER_MAX_LENGTH);
 
@@ -154,7 +157,7 @@ int websocket_write(int fd, void *buf, size_t count)
 }
 
 
-int websocket_read(int fd, void *buf, size_t count)
+int websocket_read(void *buf, size_t count)
 {
     char *base;			// base address of input buffer
     char *ptr;			// next byte
@@ -164,6 +167,7 @@ int websocket_read(int fd, void *buf, size_t count)
     int len;			// payload length 
     int nr;			// number of bytes read
     int i;
+    int fd = STDIN_FILENO;
 
     count += HEADER_MAX_LENGTH;
     base = malloc(count);
