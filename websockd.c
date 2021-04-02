@@ -15,12 +15,14 @@
 #include <signal.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <libgen.h>
 #include "base64.h"
 #include "websocket.h"
 
 #define IOBUFSZ 4096
 #define PORT    8001
 #define QLEN    10
+#define MAXPATH 512
 
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 256
@@ -68,7 +70,7 @@ struct buf {
     int cnt;
 };
 
-void service()
+void service(const char *cmd)
 {
     int req[2], res[2];		/* request and response pipes */
     int pid, nfds, nr;
@@ -76,6 +78,7 @@ void service()
     char buf[IOBUFSZ];
     struct buf line = { 0 };
     int i, n;
+    char path[MAXPATH];
 
     websocket_open();
 
@@ -88,15 +91,14 @@ void service()
 
 	if (dup2(req[0], STDIN_FILENO) != STDIN_FILENO)
 	    log_err(EXIT_FAILURE, errno, "dup2 failed");
-	
 	close(req[0]);
 
 	if (dup2(res[1], STDOUT_FILENO) != STDOUT_FILENO)
 	    log_err(EXIT_FAILURE, errno, "dup2 failed");
-	
 	close(res[1]);
 
-	if (execlp("/usr/sbin/graph", "graph", (char *) 0) < 0)
+	snprintf(path, MAXPATH, "%s%s", "/usr/sbin/", cmd);
+	if (execlp(path, cmd, (char *) 0) < 0)
 	    log_err(EXIT_FAILURE, errno, "execlp failed");
     } else if (pid > 0) {	/* parent */
 	close(req[0]);
@@ -153,7 +155,7 @@ void service()
     websocket_close(STDIN_FILENO);
 }
 
-void startup(int sockfd)
+void startup(int sockfd, const char *path)
 {
     int clfd, status;
     pid_t pid;
@@ -164,7 +166,7 @@ void startup(int sockfd)
 	if (clfd < 0)
 	    log_err(1, errno, "accept");
 	fprintf(stderr, "accepted.\n");
-	service(clfd);
+	service(path);
 	close(clfd);
     }
 }
@@ -181,6 +183,6 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "usage: %s\n", argv[0]);
 	exit(1);
     }
-    service();
+    service(argv[0]);
     exit(0);
 }
