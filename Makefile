@@ -6,7 +6,7 @@ graph: graph.c
 	$(CC) -g -o $@ $^ -lm
 
 pretty:
-	indent -kr *.c *.h
+	indent -kr -ts4 *.c *.h
 
 clean:
 	rm -f jsh
