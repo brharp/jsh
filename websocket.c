@@ -111,7 +111,7 @@ found:
     s += sprintf(s, "HTTP/1.1 101 Switching Protocols\r\n");
     s += sprintf(s, "Upgrade: websocket\r\n");
     s += sprintf(s, "Connection: Upgrade\r\n");
-    s += sprintf(s, "Sec-WebSocket-Protocol: null\r\n");
+    //s += sprintf(s, "Sec-WebSocket-Protocol: null\r\n");
     s += sprintf(s, "Sec-WebSocket-Accept: %s\r\n", accept);
     s += sprintf(s, "\r\n");
 

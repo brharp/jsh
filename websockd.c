@@ -39,6 +39,11 @@ void log_err(int status, int errnum, const char *msg)
 		exit(status);
 }
 
+void log_debug(const char *msg)
+{
+	syslog(LOG_DEBUG, msg);
+}
+
 void sig_pipe(int signo)
 {
 	printf("SIGPIPE\n");
@@ -124,8 +129,9 @@ void service(const char *cmd)
 					}
 					if ((*line.ptr++ = buf[i]) == '\n') {
 						n = line.ptr - line.base;
-						//write(STDERR_FILENO, "\nSending: ", 10);
-						//write(STDERR_FILENO, line.base, n);
+						line.base[n] = 0;
+						log_debug("\nSending: ");
+						log_debug(line.base);
 						if (websocket_write(line.base, n) < 0)
 							log_err(EXIT_FAILURE, 0, "websocket_write");
 						line.ptr = line.base;
@@ -140,17 +146,24 @@ void service(const char *cmd)
 				if (nr == 0)
 					break;
 				buf[nr++] = '\n';
-				//write(STDERR_FILENO, buf, nr);
+				buf[nr] = 0;
+				log_debug("\nReceived:");
+				log_debug(buf);
 				if (write(req[1], buf, nr) < 0)
 					log_err(EXIT_FAILURE, errno, "write");
 			}
 		}
+		log_debug("killing child process");
+		kill(pid, SIGKILL);
 	} else {
 		log_err(EXIT_FAILURE, errno, "fork failed");
 	}
 
 	close(res[0]);
 	close(req[1]);
+
+
+	log_debug("closing websocket connection");
 
 	websocket_close(STDIN_FILENO);
 }
