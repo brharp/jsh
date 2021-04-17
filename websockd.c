@@ -57,14 +57,14 @@ initserver(int type, const struct sockaddr *addr, socklen_t alen, int qlen)
 	int fd, reuse = 1;
 
 	if ((fd = socket(addr->sa_family, type, 0)) < 0)
-		log_err(EXIT_FAILURE, errno, "socket");
+		log_err(EXIT_FAILURE, errno, "socket error");
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)) < 0)
-		log_err(EXIT_FAILURE, errno, "setsockopt");
+		log_err(EXIT_FAILURE, errno, "setsockopt error");
 	if (bind(fd, addr, alen) < 0)
 		log_err(EXIT_FAILURE, errno, "bind");
 	if (type == SOCK_STREAM || type == SOCK_SEQPACKET)
 		if (listen(fd, qlen) < 0)
-			log_err(EXIT_FAILURE, errno, "listen");
+			log_err(EXIT_FAILURE, errno, "listen error");
 	return fd;
 }
 
@@ -115,11 +115,11 @@ void service(const char *cmd)
 			nfds = MAX(res[0], STDIN_FILENO) + 1;
 			nfds = select(nfds, &readers, NULL, NULL, NULL);
 			if (nfds < 0)
-				log_err(EXIT_FAILURE, errno, "select");
+				log_err(EXIT_FAILURE, errno, "select error");
 			/* Read from pipe. */
 			if (FD_ISSET(res[0], &readers)) {
 				if ((nr = read(res[0], buf, IOBUFSZ)) < 0)
-					log_err(EXIT_FAILURE, errno, "read");
+					log_err(EXIT_FAILURE, errno, "read error");
 				for (i = 0; i < nr; i++) {
 					if (--line.cnt < 0) {
 						n = line.ptr - line.base;
@@ -133,7 +133,7 @@ void service(const char *cmd)
 						log_debug("\nSending: ");
 						log_debug(line.base);
 						if (websocket_write(line.base, n) < 0)
-							log_err(EXIT_FAILURE, 0, "websocket_write");
+							log_err(EXIT_FAILURE, 0, "websocket_write error");
 						line.ptr = line.base;
 						line.cnt += n;
 					}
@@ -142,7 +142,7 @@ void service(const char *cmd)
 			/* Read from socket. */
 			if (FD_ISSET(STDIN_FILENO, &readers)) {
 				if ((nr = websocket_read(buf, IOBUFSZ - 1)) < 0)
-					log_err(EXIT_FAILURE, 0, "websocket_read");
+					log_err(EXIT_FAILURE, 0, "websocket_read error");
 				if (nr == 0)
 					break;
 				buf[nr++] = '\n';
@@ -150,13 +150,13 @@ void service(const char *cmd)
 				log_debug("\nReceived:");
 				log_debug(buf);
 				if (write(req[1], buf, nr) < 0)
-					log_err(EXIT_FAILURE, errno, "write");
+					log_err(EXIT_FAILURE, errno, "write error");
 			}
 		}
 		log_debug("killing child process");
 		kill(pid, SIGKILL);
 	} else {
-		log_err(EXIT_FAILURE, errno, "fork failed");
+		log_err(EXIT_FAILURE, errno, "fork error");
 	}
 
 	close(res[0]);
@@ -177,7 +177,7 @@ void startup(int sockfd, const char *path)
 		fprintf(stderr, "Waiting for connection...");
 		clfd = accept(sockfd, NULL, NULL);
 		if (clfd < 0)
-			log_err(1, errno, "accept");
+			log_err(1, errno, "accept error");
 		fprintf(stderr, "accepted.\n");
 		service(path);
 		close(clfd);

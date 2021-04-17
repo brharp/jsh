@@ -22,7 +22,13 @@ document.body.addEventListener("click", (event) => {
   if (event.target.tagName == "BUTTON") {
     switch (event.target.value) {
       case 'glider':
-        ws.send('........$...@....$....@...$..@@@...$........$!');
+        //ws.send('........$...@....$....@...$..@@@...$........$!');
+        ws.send('........$');
+        ws.send('...@....$');
+        ws.send('....@...$');
+        ws.send('..@@@...$');
+        ws.send('........$');
+        ws.send('!');
         break;
       case 'step':
         ws.send('!');

@@ -79,11 +79,17 @@ int m(int x, int y, int g)
         return (int)(intptr_t)(ep->data);
 }
 
+
+/* clear rectangle */
+
 void clr(int x, int y, int w, int h)
 {
 	printf("displaylist.push((cx) => cx.clearRect(%d, %d, %d, %d))\n", x, y, w, h);
 	fflush(stdout);
 }
+
+
+/* display text */
 
 void dt(const char *s, int x, int y)
 {
@@ -92,11 +98,17 @@ void dt(const char *s, int x, int y)
 	fflush(stdout);
 }
 
+
+/* fill rectangle */
+
 void fr(int x, int y, int w, int h)
 {
 	printf("displaylist.push((cx) => cx.fillRect(%d, %d, %d, %d))\n", x, y, w, h);
 	fflush(stdout);
 }
+
+
+/* stroke rectangle */
 
 void sr(int x, int y, int w, int h)
 {
@@ -104,11 +116,15 @@ void sr(int x, int y, int w, int h)
 	fflush(stdout);
 }
 
+
+/* paint */
+
 void p()
 {
 	printf("paint()\n");
 	fflush(stdout);
 }
+
 
 /* Display generation G, starting from X, Y on a WxH screen.
 d(g, x, y, w, h) =

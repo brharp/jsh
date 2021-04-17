@@ -163,6 +163,7 @@ int websocket_read(void *buf, size_t count)
     char *ptr;			// next byte
     char *key;			// masking key
     char *cbuf;			// char pointer to client buffer
+    char *bp;
     int hlen;			// header length
     int len;			// payload length 
     int nr;			// number of bytes read
@@ -176,30 +177,37 @@ int websocket_read(void *buf, size_t count)
 	return -1;
 
     nr = read(fd, base, count);
-    ptr = base + 1;
-    // skip first byte
-    len = *ptr++ & 0177;
-    if (len == 126) {
-	len = *ptr++;
-	len = len << 8 | *ptr++;
-    }
 
-    key = ptr;
-    ptr = ptr + KEY_LENGTH;
-    hlen = ptr - base;
-
-    if (hlen + len != nr) {
-	free(base);
-	return -1;
-    }
-
+    ptr = base;
     cbuf = buf;
-    for (i = 0; i < len; i++)
-	cbuf[i] = ptr[i] ^ key[i % 4];
+
+    while (ptr - base < nr) {
+        bp = ptr;
+        ptr++; // skip first byte
+        len = *ptr++ & 0177;
+        if (len == 126) {
+	    len = *ptr++;
+	    len = len << 8 | *ptr++;
+        }
+
+        key = ptr;
+        ptr = ptr + KEY_LENGTH;
+        hlen = ptr - bp;
+
+        syslog(LOG_ERR, "Length = %d", len);
+        syslog(LOG_ERR, "Header length = %d", hlen);
+        syslog(LOG_ERR, "Bytes read = %d", nr);
+
+        for (i = 0; i < len; i++)
+	    *cbuf++ = *ptr++ ^ key[i % 4];
+
+        *cbuf = 0;
+        syslog(LOG_ERR, "Data = %s", cbuf - len);
+    }
 
     free(base);
 
-    return len;
+    return cbuf - (char *)buf;
 }
 
 
